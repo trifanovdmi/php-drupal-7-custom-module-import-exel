@@ -1,0 +1,263 @@
+﻿<?php
+
+function parse_exel_menu()
+{
+    $items['import_xls'] = array(
+        'title' => t('Страница импорта товаров'),
+        'page callback' => 'parse_exel_parse_estate',
+        'page arguments' => array(1),
+        'access arguments' => array('access content'),
+        'access callback' => 'parse_exel_active_permition',
+        'access arguments' => array(1),
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 10,
+    );
+    return $items;
+}
+
+function parse_exel_active_permition()
+{
+    global $user;
+    if((in_array('administrator', array_values($user->roles))
+    return true;
+}
+
+function parse_exel_parse_estate($user)
+{
+   $form = drupal_get_form('parse_exel_estate_form');
+   $output = '<div>' . drupal_render($form) . '</div>';
+
+    return $output;
+}
+
+function parse_exel_estate_form($form, &$form_state)
+{
+    $form['file'] = array(
+        '#type' => 'managed_file',
+            '#title' => t('Добавить документ'),
+            '#upload_location' => 'public://documents',
+            '#progress_indicator' => 'bar',
+            '#size' => 22,
+            '#weight' => 10,
+            '#upload_validators' => array(
+                'file_validate_extensions' => array('xls')
+            ),
+        );
+    $form['submit'] = array(
+        '#type' => 'submit',
+        '#value' => t('Начать загрузку'),
+        '#weight' => 15,
+        '#submit' => array('parse_exel_estate_s_form_submit'),
+    );
+    return $form;
+}
+
+function parse_exel_estate_s_form_submit(&$form, &$form_state)
+{
+    $fid =  $form_state['values']['file'];
+    $file = file_load($fid);
+    $filepath = file_create_url($file->uri);
+    require(drupal_get_path('module', 'parse_exel') . '/library/reader.php');
+    $data = new Spreadsheet_Excel_Reader();
+    $data->setOutputEncoding("UTF-8"); 
+    $data->read($filepath);
+    $count = $data->sheets[0]["numRows"]; // Number of rows filled.
+    
+    for ($i=3; $i<=$count; $i++)
+    {
+
+        // Create a new node object.
+
+        $node = new stdClass();
+        $node->type = "product";
+        $node->last_comment_timestamp = time();
+        $node->last_comment_name = null;
+        $node->last_comment_uid = 1;
+        $node->comment_count = 0;
+        node_object_prepare($node);
+        $node->language = LANGUAGE_NONE;
+        $node->uid = 1;
+        $node->status = 1;
+        $node->promote = 0;
+        $node->comment = 1;
+
+        // Object property.
+
+        $node->title = addslashes(trim($data->sheets[0]["cells"][$i][1]));
+        $row['category'] = addslashes(trim($data->sheets[0]["cells"][$i][2]));
+        if($row['category'])
+        {
+            $term = taxonomy_get_term_by_name($row['category']);
+            $term = array_shift($term);
+            $node->field_type_product['und'][0]['tid'] = $term->tid;
+        }
+        $row['type_product'] = addslashes(trim($data->sheets[0]["cells"][$i][3]));
+        if($row['type_product'])
+        {
+            $term = taxonomy_get_term_by_name($row['type_product']);
+            $term = array_shift($term);
+            $node->field_type_of_additional_produc['und'][0]['tid'] = $term->tid;
+        }
+        $row['brand'] = addslashes(trim($data->sheets[0]["cells"][$i][4]));
+        if($row['brand'])
+        {
+            $term = taxonomy_get_term_by_name($row['brand']);
+            $term = array_shift($term);
+            $node->field_manufacturer['und'][0]['tid'] = $term->tid;
+        }
+        $row['count_conter'] = addslashes(trim($data->sheets[0]["cells"][$i][5]));
+        if($row['count_conter'])
+        {
+            $term = taxonomy_get_term_by_name($row['count_conter']);
+            $term = array_shift($term);
+            $node->field_contours['und'][0]['tid'] = $term->tid;
+        }
+        $row['type_boiler'] = addslashes(trim($data->sheets[0]["cells"][$i][6]));
+        if($row['type_boiler'])
+        {
+            $node->field_type['und'][0]['value'] = $row['type_boiler'];
+        }
+        $row['type_placing'] = addslashes(trim($data->sheets[0]["cells"][$i][7]));
+        if($row['type_placing'])
+        {
+            $term = taxonomy_get_term_by_name($row['type_placing']);
+            $term = array_shift($term);
+            $node->field_position['und'][0]['tid'] = $term->tid;
+        }
+        $row['type_fuel'] = addslashes(trim($data->sheets[0]["cells"][$i][8]));
+        if($row['type_fuel'])
+        {
+            $term = taxonomy_get_term_by_name($row['type_fuel']);
+            $term = array_shift($term);
+            $node->field_fuil['und'][0]['tid'] = $term->tid;
+        }
+        $row['value_kpd_v'] = addslashes(trim($data->sheets[0]["cells"][$i][9]));
+        if($row['value_kpd_v'])
+        {
+            $node->field_kpd['und'][0]['first'] = $row['value_kpd_v'];
+        }
+        $row['value_kpd_p'] = addslashes(trim($data->sheets[0]["cells"][$i][10]));
+        if($row['value_kpd_p'])
+        {
+            $node->field_kpd['und'][0]['second'] = $row['value_kpd_p'];
+        }
+        $row['material'] = addslashes(trim($data->sheets[0]["cells"][$i][11]));
+        if($row['material'])
+        {
+            $term = taxonomy_get_term_by_name($row['material']);
+            $term = array_shift($term);
+            $node->field_material['und'][0]['tid'] = $term->tid;
+        }
+        $row['power_ov'] = addslashes(trim($data->sheets[0]["cells"][$i][12]));
+        if($row['power_ov'])
+        {
+            $node->field_power['und'][0]['first'] = $row['power_ov'];
+        }
+        $row['power_gvs'] = addslashes(trim($data->sheets[0]["cells"][$i][13]));
+        if($row['power_gvs'])
+        {
+            $node->field_power['und'][0]['second'] = $row['power_gvs'];
+        }
+        $row['place'] = addslashes(trim($data->sheets[0]["cells"][$i][14]));
+        if($row['place'])
+        {
+            $node->field_area['und'][0]['value'] = $row['place'];
+        }
+        $row['consumption_g'] = addslashes(trim($data->sheets[0]["cells"][$i][15]));
+        if($row['consumption_g'])
+        {
+            $node->field_liquefied['und'][0]['value'] = $row['consumption_g'];
+        }
+        $row['consumption_p'] = addslashes(trim($data->sheets[0]["cells"][$i][16]));
+        if($row['consumption_p'])
+        {
+            $node->field_expenditure['und'][0]['value'] = $row['consumption_p'];
+        }
+        $row['performance_25'] = addslashes(trim($data->sheets[0]["cells"][$i][17]));
+        if($row['performance_25'])
+        {
+            $node->field_capacity['und'][0]['first'] = $row['performance_25'];
+        }
+        $row['performance_40'] = addslashes(trim($data->sheets[0]["cells"][$i][18]));
+        if($row['performance_40'])
+        {
+            $node->field_capacity['und'][0]['second'] = $row['performance_40'];
+        }
+        $row['height'] = addslashes(trim($data->sheets[0]["cells"][$i][19]));
+        if($row['height'])
+        {
+            $node->field_dimensions_height['und'][0]['value'] = $row['height'];
+        }
+        $row['width'] = addslashes(trim($data->sheets[0]["cells"][$i][20]));
+        if($row['width'])
+        {
+            $node->field_field_dimensions_width['und'][0]['value'] = $row['width'];
+        }
+        $row['depth'] = addslashes(trim($data->sheets[0]["cells"][$i][21]));
+        if($row['depth'])
+        {
+            $node->field_depth['und'][0]['value'] = $row['depth'];
+        }
+        $row['weight'] = addslashes(trim($data->sheets[0]["cells"][$i][22]));
+        if($row['weight'])
+        {
+            $node->field_weight['und'][0]['value'] = $row['weight'];
+        }
+        $row['garant'] = addslashes(trim($data->sheets[0]["cells"][$i][23]));
+        if($row['garant'])
+        {
+            $node->field_guarantee['und'][0]['value'] = $row['garant'];
+        }
+        $row['price'] = addslashes(trim($data->sheets[0]["cells"][$i][24]));
+        if($row['price'])
+        {
+            $node->field_price_for_sort['und'][0]['value'] = $row['price'];
+        }
+        $row['old_price'] = addslashes(trim($data->sheets[0]["cells"][$i][25]));
+        if($row['old_price'])
+        {
+            $node->field_expenditure['und'][0]['value'] = $row['old_price'];
+        }
+        $row['percent'] = addslashes(trim($data->sheets[0]["cells"][$i][26]));
+        if($row['percent'])
+        {
+            $node->field_sales['und'][0]['value'] = $row['percent'];
+        }
+        $row['articl'] = addslashes(trim($data->sheets[0]["cells"][$i][27]));
+        if($row['articl'] && $row['price'])
+        {
+            $product = commerce_product_new('product');
+            $product->sku = $row['articl'];
+            $product->title = mb_strimwidth($node->title, 0 , 255);
+            $product->language = LANGUAGE_NONE;
+            $product->uid = 1;
+            $product->commerce_price[LANGUAGE_NONE][0]['amount'] = $row['price']; 
+            $product->commerce_price[LANGUAGE_NONE][0]['currency_code'] = 'RUB';
+
+            entity_save('commerce_product', $product);
+            if(!empty($product->product_id))
+            {
+                $node->field_product['und'][0]['product_id'] = $product->product_id;
+            }
+        }
+
+        // Save node object.
+
+        $node = node_submit($node); 
+        $node_complete = node_save($node);
+    }
+    if($node_complete)
+    {
+        drupal_set_message(t("Импорт прошел успешно"));
+    }
+    else 
+    {
+        die("Data structure error");
+    }
+
+return true;  
+}
+
+
+
+
